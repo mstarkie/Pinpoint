@@ -97,4 +97,13 @@ public class PinpointSimulatorController : MonoBehaviour
         var data = _selected != null ? _selected.GetComponent<PinpointMarkerModel>() : null;
         detailsPanel.Bind(data);
     }
+
+    private void DeselectCurrent()
+    {
+        if (_selected != null && _selected.TryGetComponent(out PinpointMarkerView oldView))
+            oldView.SetSelected(false);
+
+        _selected = null;
+        detailsPanel.Bind(null);
+    }
 }
