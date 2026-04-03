@@ -60,8 +60,9 @@ public class PinpointSimulatorController : MonoBehaviour
         else
         {
             // Fallback: place in front of camera
-            Vector3 p = mainCamera.transform.position + mainCamera.transform.forward * fallbackDistance;
-            PlaceMarker(p);
+            //Vector3 p = mainCamera.transform.position + mainCamera.transform.forward * fallbackDistance;
+            //PlaceMarker(p);
+            DeselectCurrent();
         }
     }
 
@@ -104,6 +105,8 @@ public class PinpointSimulatorController : MonoBehaviour
             oldView.SetSelected(false);
 
         _selected = null;
-        detailsPanel.Bind(null);
+
+        if (detailsPanel != null)
+            detailsPanel.Bind(null);
     }
 }
