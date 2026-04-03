@@ -4,6 +4,7 @@ using TMPro;
 
 public class MarkerDetailsPanel : MonoBehaviour
 {
+    [SerializeField] private GameObject panelRoot;
     [SerializeField] private TMP_Text markerIdText;
     [SerializeField] private TMP_InputField titleInput;
     [SerializeField] private TMP_Dropdown severityDropdown;
@@ -26,8 +27,14 @@ public class MarkerDetailsPanel : MonoBehaviour
     {
         _model = data;
         bool hasSelection = _model != null;
-        contentRoot.SetActive(hasSelection);
+
+        if (panelRoot != null)
+            panelRoot.SetActive(hasSelection);
+        if (contentRoot != null)
+            contentRoot.SetActive(hasSelection);
+
         if (!hasSelection) return;
+        
         markerIdText.text = _model.MarkerId;
         titleInput.SetTextWithoutNotify(_model.Title);
         severityDropdown.SetValueWithoutNotify((int)_model.Severity);

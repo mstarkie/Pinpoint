@@ -1235,6 +1235,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9f1e4b6c94a8f84186498c577512dba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MarkerDetailsPanel
+  panelRoot: {fileID: 502635956}
   markerIdText: {fileID: 1565498087}
   titleInput: {fileID: 547837083}
   severityDropdown: {fileID: 2088437869}
