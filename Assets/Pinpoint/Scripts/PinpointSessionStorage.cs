@@ -8,8 +8,9 @@ public class PinpointSessionStorage
 
     public static void Save(PinpointSessionDto session, string path = null)
     {
+        string fullPath = path ?? DefaultPath;
         string json = JsonUtility.ToJson(session, true);
-        File.WriteAllText(path ?? DefaultPath, json);
+        File.WriteAllText(fullPath, json);
         Debug.Log($"Saved session to: {path ?? DefaultPath}");
     }
 
