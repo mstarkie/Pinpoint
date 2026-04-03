@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
-
+using UnityEngine.EventSystems;
+using TMPro;
 public class PinpointSimulatorController : MonoBehaviour
 {
     [Header("References")]
@@ -26,7 +27,33 @@ public class PinpointSimulatorController : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0)) // left click
         {
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                return;
+                
             HandleLeftClick();
+        }
+
+        if (IsTypingInInputField())
+            return;
+
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            var session = CreateSessionDtoFromScene();
+            PinpointSessionStorage.Save(session);
+            Debug.Log("Session Saved");
+        }
+
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            var session = PinpointSessionStorage.Load();
+            LoadSessionFromDto(session);
+            Debug.Log("Session Loaded");
+        }
+
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            ClearAllMarkers();
+            Debug.Log("Markers Cleared");
         }
     }
 
@@ -108,5 +135,84 @@ public class PinpointSimulatorController : MonoBehaviour
 
         if (detailsPanel != null)
             detailsPanel.Bind(null);
+    }
+
+    private PinpointSessionDto CreateSessionDtoFromScene()
+    {
+        var session = new PinpointSessionDto
+        {
+            sessionName = "Pinpoint Session"
+        };
+
+        foreach (var marker in _markers)
+        {
+            if (marker == null) continue;
+
+            var data = marker.GetComponent<PinpointMarkerModel>();
+            if (data == null) continue;
+
+            session.markers.Add(new PinpointMarkerDto
+            {
+                markerId = data.MarkerId,
+                title = data.Title,
+                severity = (int)data.Severity,
+                status = (int)data.Status,
+                rawNote = data.RawNote,
+                position = marker.transform.position
+            });
+        }
+
+        return session;
+    }
+
+    private void ClearAllMarkers()
+    {
+        DeselectCurrent();
+
+        foreach (var marker in _markers)
+        {
+            if (marker != null)
+                Destroy(marker);
+        }
+
+        _markers.Clear();
+    }
+
+    private void LoadSessionFromDto(PinpointSessionDto session)
+    {
+        if (session == null) return;
+
+        ClearAllMarkers();
+
+        foreach (var markerDto in session.markers)
+        {
+            var go = Instantiate(markerPrefab, markerDto.position, Quaternion.identity);
+            go.tag = "PinpointMarker";
+            go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
+
+            var data = go.GetComponent<PinpointMarkerModel>();
+            if (data == null) data = go.AddComponent<PinpointMarkerModel>();
+
+            data.LoadFromDto(markerDto);
+
+            if (go.GetComponent<PinpointMarkerView>() == null)
+                go.AddComponent<PinpointMarkerView>();
+
+            _markers.Add(go);
+        }
+
+        DeselectCurrent();
+    }
+
+    private bool IsTypingInInputField()
+    {
+        if (EventSystem.current == null)
+            return false;
+
+        var selected = EventSystem.current.currentSelectedGameObject;
+        if (selected == null)
+            return false;
+
+        return selected.GetComponent<TMP_InputField>() != null;
     }
 }

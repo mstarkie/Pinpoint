@@ -25,4 +25,13 @@ public class PinpointMarkerModel : MonoBehaviour
         status = MarkerStatus.Open;
         rawNote = "";
     }
+
+    public void LoadFromDto(PinpointMarkerDto dto)
+    {
+        markerId = dto.markerId;
+        title = dto.title;
+        severity = (MarkerSeverity)dto.severity;
+        status = (MarkerStatus)dto.status;
+        rawNote = dto.rawNote;
+    }
 }
