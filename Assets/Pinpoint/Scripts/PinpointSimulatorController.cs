@@ -8,7 +8,8 @@ public class PinpointSimulatorController : MonoBehaviour
     [SerializeField] private Camera mainCamera;
     [SerializeField] private GameObject markerPrefab;
     [SerializeField] private MarkerDetailsPanel detailsPanel;
-
+    [SerializeField] private MonoBehaviour pointerRayProviderBehaviour;
+    private IPointerRayProvider _pointerRayProvider;
 
     [Header("Raycast")]
     [SerializeField] private LayerMask placementMask = ~0;
@@ -17,6 +18,13 @@ public class PinpointSimulatorController : MonoBehaviour
 
     private readonly List<GameObject> _markers = new();
     private GameObject _selected;
+
+    private void Awake()
+    {
+        _pointerRayProvider = pointerRayProviderBehaviour as IPointerRayProvider;
+        if (_pointerRayProvider == null)
+            Debug.LogError("Pointer ray provider is not assigned or does not implement IPointerRayProvider.");
+    }
 
     void Reset()
     {
@@ -65,7 +73,7 @@ public class PinpointSimulatorController : MonoBehaviour
             return;
         }
 
-        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = _pointerRayProvider.GetPointerRay();
 
         if (Physics.Raycast(ray, out RaycastHit hit, 100f, placementMask, QueryTriggerInteraction.Ignore))
         {
