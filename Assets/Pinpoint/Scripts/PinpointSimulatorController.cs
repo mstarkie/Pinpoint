@@ -38,22 +38,17 @@ public class PinpointSimulatorController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.S))
         {
-            var session = CreateSessionDtoFromScene();
-            PinpointSessionStorage.Save(session);
-            Debug.Log("Session Saved");
+            SaveSession();
         }
 
         if (Input.GetKeyDown(KeyCode.L))
         {
-            var session = PinpointSessionStorage.Load();
-            LoadSessionFromDto(session);
-            Debug.Log("Session Loaded");
+            LoadSession();
         }
 
         if (Input.GetKeyDown(KeyCode.N))
         {
-            ClearAllMarkers();
-            Debug.Log("Markers Cleared");
+            NewSession();
         }
     }
 
@@ -124,6 +119,19 @@ public class PinpointSimulatorController : MonoBehaviour
 
         var data = _selected != null ? _selected.GetComponent<PinpointMarkerModel>() : null;
         detailsPanel.Bind(data);
+    }
+
+    public void DeleteSelectedMarker()
+    {
+        if (_selected == null)
+            return;
+
+        _markers.Remove(_selected);
+        Destroy(_selected);
+        _selected = null;
+
+        if (detailsPanel != null)
+            detailsPanel.Bind(null);
     }
 
     private void DeselectCurrent()
@@ -214,5 +222,24 @@ public class PinpointSimulatorController : MonoBehaviour
             return false;
 
         return selected.GetComponent<TMP_InputField>() != null;
+    }
+
+    public void SaveSession()
+    {
+        var session = CreateSessionDtoFromScene();
+        PinpointSessionStorage.Save(session);
+        Debug.Log("Session Saved");
+    }
+    public void LoadSession()
+    {
+        var session = PinpointSessionStorage.Load();
+        LoadSessionFromDto(session);
+        Debug.Log("Session Loaded");
+    }
+
+    public void NewSession()
+    {
+        ClearAllMarkers();
+        Debug.Log("Markers Cleared");
     }
 }
