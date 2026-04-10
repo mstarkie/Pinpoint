@@ -2,26 +2,22 @@ using UnityEngine;
 
 public class PinpointMarkerView : MonoBehaviour
 {
-    [SerializeField] private Transform visualRoot;
-    [SerializeField] private float selectedScaleMultiplier = 1.3f;
+    [SerializeField] private Renderer targetRenderer;
+    [SerializeField] private Material normalMaterial;
+    [SerializeField] private Material selectedMaterial;
 
-    private Vector3 _baseScale;
-    private bool _initialized;
-
-    private void Awake()
+    private void Reset()
     {
-       if (visualRoot == null) visualRoot = transform; // attached to GameObject 
-       _baseScale = visualRoot.localScale;
-       _initialized = true;
+        if (targetRenderer == null)
+            targetRenderer = GetComponentInChildren<Renderer>();
     }
 
-    public void SetSelected(bool selected)
-    {
-        if (!_initialized)
-        {
-            Awake();
-        }
 
-        visualRoot.localScale = selected ? _baseScale * selectedScaleMultiplier : _baseScale;
+    public void SetSelected(bool isSelected)
+    {
+        if (targetRenderer == null)
+            return;
+
+        targetRenderer.sharedMaterial = isSelected ? selectedMaterial : normalMaterial;
     }
 }

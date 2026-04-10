@@ -14,16 +14,25 @@ public class PinpointSimulatorController : MonoBehaviour
     [Header("Raycast")]
     [SerializeField] private LayerMask placementMask = ~0;
     [SerializeField] private float fallbackDistance = 2f;
-
+    [SerializeField] private TMP_Text saveButtonLabel;
 
     private readonly List<GameObject> _markers = new();
     private GameObject _selected;
+    private bool _isDirty;
+    private const string SaveCleanLabel = "Save";
+    private const string SaveDirtyLabel = "Save*";
 
     private void Awake()
     {
+        RefreshSaveButtonLabel();
         _pointerRayProvider = pointerRayProviderBehaviour as IPointerRayProvider;
         if (_pointerRayProvider == null)
             Debug.LogError("Pointer ray provider is not assigned or does not implement IPointerRayProvider.");
+
+        if (detailsPanel != null)
+        {
+            detailsPanel.OnMarkerEdited = MarkDirty;
+        }
     }
 
     void Reset()
@@ -111,6 +120,7 @@ public class PinpointSimulatorController : MonoBehaviour
 
         _markers.Add(marker);
         SelectMarker(marker);
+        MarkDirty();
     }
 
     private void SelectMarker(GameObject marker)
@@ -129,6 +139,33 @@ public class PinpointSimulatorController : MonoBehaviour
         detailsPanel.Bind(data);
     }
 
+    private void SetSelectedMarker(PinpointMarkerModel marker)
+    {
+        if (_selected == marker)
+            return;
+
+        if (_selected != null)
+        {
+            var oldView = _selected.GetComponent<PinpointMarkerView>();
+            if (oldView != null)
+                oldView.SetSelected(false);
+        }
+
+        _selected = marker;
+
+        if (_selected != null)
+        {
+            var newView = _selected.GetComponent<PinpointMarkerView>();
+            if (newView != null)
+                newView.SetSelected(true);
+
+            if (detailsPanel != null) {
+                var data = _selected != null ? _selected.GetComponent<PinpointMarkerModel>() : null;
+                detailsPanel.Bind(data);
+            }
+        }
+    }
+
     public void DeleteSelectedMarker()
     {
         if (_selected == null)
@@ -140,6 +177,7 @@ public class PinpointSimulatorController : MonoBehaviour
 
         if (detailsPanel != null)
             detailsPanel.Bind(null);
+        MarkDirty();
     }
 
     private void DeselectCurrent()
@@ -204,7 +242,7 @@ public class PinpointSimulatorController : MonoBehaviour
         {
             var go = Instantiate(markerPrefab, markerDto.position, Quaternion.identity);
             go.tag = "PinpointMarker";
-            go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
+            //go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
 
             var data = go.GetComponent<PinpointMarkerModel>();
             if (data == null) data = go.AddComponent<PinpointMarkerModel>();
@@ -236,18 +274,47 @@ public class PinpointSimulatorController : MonoBehaviour
     {
         var session = CreateSessionDtoFromScene();
         PinpointSessionStorage.Save(session);
+        MarkClean();
         Debug.Log("Session Saved");
     }
     public void LoadSession()
     {
         var session = PinpointSessionStorage.Load();
         LoadSessionFromDto(session);
+        MarkClean();
         Debug.Log("Session Loaded");
     }
 
     public void NewSession()
     {
         ClearAllMarkers();
+        MarkClean();
         Debug.Log("Markers Cleared");
+    }
+
+    private void MarkDirty()
+    {
+        if (_isDirty)
+            return;
+
+        _isDirty = true;
+        RefreshSaveButtonLabel();
+    }
+
+    private void MarkClean()
+    {
+        if (!_isDirty)
+            return;
+
+        _isDirty = false;
+        RefreshSaveButtonLabel();
+    }
+
+    private void RefreshSaveButtonLabel()
+    {
+        if (saveButtonLabel != null)
+        {
+            saveButtonLabel.text = _isDirty ? SaveDirtyLabel : SaveCleanLabel;
+        }
     }
 }

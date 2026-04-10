@@ -34,4 +34,9 @@ public class PinpointMarkerModel : MonoBehaviour
         status = (MarkerStatus)dto.status;
         rawNote = dto.rawNote;
     }
+
+    public static implicit operator GameObject(PinpointMarkerModel v)
+    {
+        throw new NotImplementedException();
+    }
 }

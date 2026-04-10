@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 6790064191265899912}
   - component: {fileID: 8371830193116759944}
   - component: {fileID: 7717530479563757754}
+  - component: {fileID: 8982130081752896264}
   m_Layer: 0
   m_Name: Marker
   m_TagString: PinpointMarker
@@ -112,3 +113,18 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &8982130081752896264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8527043941248358384}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 889e61be4455ce049b21551c07946005, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PinpointMarkerView
+  targetRenderer: {fileID: 8371830193116759944}
+  normalMaterial: {fileID: 2100000, guid: d1ce44758e0a46f41a455cf1d2cc31d4, type: 2}
+  selectedMaterial: {fileID: 2100000, guid: 622f05910a4f85c4faee37a5f37fedfb, type: 2}

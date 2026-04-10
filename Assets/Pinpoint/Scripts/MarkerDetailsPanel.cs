@@ -13,6 +13,7 @@ public class MarkerDetailsPanel : MonoBehaviour
     [SerializeField] private GameObject contentRoot;
 
     private PinpointMarkerModel _model;
+    public System.Action OnMarkerEdited;
     private void Awake()
     {
         titleInput.onValueChanged.AddListener(OnTitleChanged);
@@ -41,24 +42,40 @@ public class MarkerDetailsPanel : MonoBehaviour
         statusDropdown.SetValueWithoutNotify((int)_model.Status);
         rawNoteInput.SetTextWithoutNotify(_model.RawNote);
     }
+
     
-    private void OnTitleChanged(string value)
+    
+    public void OnTitleChanged(string value)
     {
-        if (_model != null) _model.Title = value;
+        if (_model != null) {
+            _model.Title = value;
+            OnMarkerEdited?.Invoke();
+        }
     }
 
     private void OnSeverityChanged(int index)
     {
-        if (_model != null) _model.Severity = (MarkerSeverity)index;
+        if (_model != null) {
+            _model.Severity = (MarkerSeverity)index;
+            OnMarkerEdited?.Invoke();
+        }
     }
 
     private void OnStatusChanged(int index)
     {
-        if (_model != null) _model.Status = (MarkerStatus)index;
+        if (_model != null) {
+            _model.Status = (MarkerStatus)index;
+            OnMarkerEdited?.Invoke();
+        }
     }
 
     private void OnRawNoteChanged(string value)
     {
-        if (_model != null) _model.RawNote = value;
+        if (_model != null) {
+            _model.RawNote = value;
+            OnMarkerEdited?.Invoke();
+        }
     }
+
+    
 }
