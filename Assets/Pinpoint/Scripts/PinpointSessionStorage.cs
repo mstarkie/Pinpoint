@@ -27,3 +27,17 @@ public class PinpointSessionStorage
         return JsonUtility.FromJson<PinpointSessionDto>(json);
     }
 }
+
+public static class PinpointAnalysisExportStorage
+{
+    public static string DefaultPath =>
+        Path.Combine(Application.persistentDataPath, "pinpoint_analysis_export.json");
+
+    public static void Save(PinpointAnalysisExportDto analysisExport, string path = null)
+    {
+        string fullPath = path ?? DefaultPath;
+        string json = JsonUtility.ToJson(analysisExport, true);
+        File.WriteAllText(fullPath, json);
+        Debug.Log($"Exported analysis package to: {fullPath}");
+    }
+}

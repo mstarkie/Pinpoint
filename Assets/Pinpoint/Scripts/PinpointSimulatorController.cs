@@ -235,6 +235,55 @@ public class PinpointSimulatorController : MonoBehaviour
         return session;
     }
 
+    private PinpointAnalysisExportDto CreateAnalysisExportDtoFromScene()
+    {
+        var analysisExport = new PinpointAnalysisExportDto
+        {
+            exportedAtUtc = PinpointTimestamp.NowUtcIso(),
+            sessionName = "Pinpoint Session",
+            sessionLastSavedAtUtc = _lastSavedAtUtc,
+            sessionHasUnsavedChanges = _isDirty
+        };
+
+        foreach (var marker in _markers)
+        {
+            if (marker == null) continue;
+
+            var data = marker.GetComponent<PinpointMarkerModel>();
+            if (data == null) continue;
+
+            var anchor = CreateAnchorDto(marker.transform);
+            analysisExport.observations.Add(new PinpointAnalysisObservationDto
+            {
+                markerId = data.MarkerId,
+                title = data.Title,
+                severityValue = (int)data.Severity,
+                severityLabel = data.Severity.ToString(),
+                statusValue = (int)data.Status,
+                statusLabel = data.Status.ToString(),
+                rawNote = data.RawNote,
+                normalizedNote = "",
+                createdAtUtc = data.CreatedAtUtc,
+                updatedAtUtc = data.UpdatedAtUtc,
+                anchor = anchor,
+                anchorSourceLabel = anchor.Source.ToString(),
+                position = anchor.position,
+                analysisContext = BuildAnalysisContext(data, anchor)
+            });
+        }
+
+        analysisExport.markerCount = analysisExport.observations.Count;
+        return analysisExport;
+    }
+
+    private string BuildAnalysisContext(PinpointMarkerModel marker, MarkerAnchorDto anchor)
+    {
+        return
+            $"Marker '{marker.Title}' is {marker.Status} with {marker.Severity} severity. " +
+            $"Anchor source is {anchor.Source}. " +
+            $"Raw note: {marker.RawNote}";
+    }
+
     private void ClearAllMarkers()
     {
         DeselectCurrent();
@@ -321,6 +370,14 @@ public class PinpointSimulatorController : MonoBehaviour
         RefreshSessionStatusText();
         Debug.Log("Session Saved");
     }
+
+    public void ExportAnalysisJson()
+    {
+        var analysisExport = CreateAnalysisExportDtoFromScene();
+        PinpointAnalysisExportStorage.Save(analysisExport);
+        Debug.Log($"Analysis export contains {analysisExport.markerCount} marker observations.");
+    }
+
     public void LoadSession()
     {
         var session = PinpointSessionStorage.Load();

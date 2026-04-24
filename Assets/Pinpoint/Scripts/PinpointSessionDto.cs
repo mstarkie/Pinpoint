@@ -25,6 +25,37 @@ public class PinpointMarkerDto
     public Vector3 position;
 }
 
+[Serializable]
+public class PinpointAnalysisExportDto
+{
+    public string schemaVersion = "pinpoint.analysis.v1";
+    public string exportedAtUtc;
+    public string sessionName;
+    public string sessionLastSavedAtUtc;
+    public bool sessionHasUnsavedChanges;
+    public int markerCount;
+    public List<PinpointAnalysisObservationDto> observations = new();
+}
+
+[Serializable]
+public class PinpointAnalysisObservationDto
+{
+    public string markerId;
+    public string title;
+    public int severityValue;
+    public string severityLabel;
+    public int statusValue;
+    public string statusLabel;
+    public string rawNote;
+    public string normalizedNote;
+    public string createdAtUtc;
+    public string updatedAtUtc;
+    public MarkerAnchorDto anchor;
+    public string anchorSourceLabel;
+    public Vector3 position;
+    public string analysisContext;
+}
+
 public static class PinpointTimestamp
 {
     private const string DisplayFormat = "yyyy-MM-dd HH:mm 'UTC'";
