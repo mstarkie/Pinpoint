@@ -22,6 +22,7 @@ Current capabilities include:
 - Export an AI-ready analysis JSON package.
 - Toggle between selection and deliberate marker placement modes.
 - Preview marker placement with a small runtime reticle before placing.
+- Color markers by severity and show status with a camera-facing badge.
 - Drag the marker details panel in the simulator.
 - Keep pointer input, panel dragging, note normalization, and marker anchoring behind small interfaces so the simulator can later be swapped for AR controller, headset, voice, and spatial anchor implementations.
 
@@ -83,7 +84,7 @@ The prototype is organized around small, replaceable pieces:
 
 - `PinpointSimulatorController` coordinates marker placement, selection, save/load, session status, and export.
 - `PinpointMarkerModel` owns marker data such as ID, title, severity, status, notes, and timestamps.
-- `PinpointMarkerView` owns marker selection visuals.
+- `PinpointMarkerView` owns marker selection, severity color, and status badge visuals.
 - `MarkerDetailsPanel` binds selected marker data to the UI.
 - `PinpointSessionDto` defines serialized session, marker, anchor, and analysis export data.
 - `PinpointSessionStorage` handles JSON save/load and analysis export writing.
@@ -125,11 +126,14 @@ After opening `Pinpoint_SIM.unity` and entering Play Mode:
 5. Left click to place a marker and confirm the simulator returns to `Select` mode with the original button colors restored.
 6. Place a second marker, select one, and edit its title, severity, status, and notes.
 7. Confirm the save button changes to `Save*`.
-8. Drag the details panel and confirm it stays usable.
-9. Save the session.
-10. Start a new session and confirm markers clear.
-11. Load the session and confirm markers, IDs, timestamps, and marker count are restored.
-12. Export analysis JSON and inspect the generated file.
+8. Select a marker and confirm the sphere turns white while selected.
+9. Change severity, select another marker, and confirm the marker uses its severity color when not selected.
+10. Change status and confirm the camera-facing status badge updates immediately.
+11. Drag the details panel and confirm it stays usable.
+12. Save the session.
+13. Start a new session and confirm markers clear.
+14. Load the session and confirm markers, IDs, timestamps, visual state, and marker count are restored.
+15. Export analysis JSON and inspect the generated file.
 
 ## Near-Term Roadmap
 

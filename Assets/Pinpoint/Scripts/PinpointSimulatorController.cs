@@ -18,7 +18,6 @@ public class PinpointSimulatorController : MonoBehaviour
 
     [Header("Raycast")]
     [SerializeField] private LayerMask placementMask = ~0;
-    [SerializeField] private float fallbackDistance = 2f;
     [SerializeField] private TMP_Text saveButtonLabel;
     [SerializeField] private TMP_Text sessionStatusText;
 
@@ -159,9 +158,6 @@ public class PinpointSimulatorController : MonoBehaviour
     {
         if (!TryRaycastScene(out RaycastHit hit, true))
         {
-            // Fallback: place in front of camera
-            //Vector3 p = mainCamera.transform.position + mainCamera.transform.forward * fallbackDistance;
-            //PlaceMarker(p);
             DeselectCurrent();
             return;
         }

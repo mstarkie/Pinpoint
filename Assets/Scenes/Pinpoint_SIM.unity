@@ -1404,13 +1404,12 @@ MonoBehaviour:
   placementMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  fallbackDistance: 2
   saveButtonLabel: {fileID: 1078794501}
   sessionStatusText: {fileID: 2100000004}
-  selectModeButton: {fileID: 2300000005}
-  placeModeButton: {fileID: 2300000015}
   interactionMode: 0
   returnToSelectAfterPlacement: 1
+  selectModeButton: {fileID: 2300000005}
+  placeModeButton: {fileID: 2300000015}
   showPlacementPreview: 1
   placementPreviewSize: 0.14
   placementPreviewSurfaceOffset: 0.01

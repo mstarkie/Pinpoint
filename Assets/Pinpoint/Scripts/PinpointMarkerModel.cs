@@ -75,6 +75,7 @@ public class PinpointMarkerModel : MonoBehaviour
         severity = MarkerSeverity.Medium;
         status = MarkerStatus.Open;
         rawNote = "";
+        RefreshAttachedView();
     }
 
     public void LoadFromDto(PinpointMarkerDto dto)
@@ -87,15 +88,18 @@ public class PinpointMarkerModel : MonoBehaviour
         severity = (MarkerSeverity)dto.severity;
         status = (MarkerStatus)dto.status;
         rawNote = dto.rawNote;
+        RefreshAttachedView();
     }
 
     private void TouchUpdatedAt()
     {
         updatedAtUtc = PinpointTimestamp.NowUtcIso();
+        RefreshAttachedView();
     }
 
-    public static implicit operator GameObject(PinpointMarkerModel v)
+    private void RefreshAttachedView()
     {
-        throw new NotImplementedException();
+        if (TryGetComponent(out PinpointMarkerView view))
+            view.RefreshVisuals();
     }
 }
