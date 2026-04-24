@@ -52,7 +52,8 @@ It is not yet a production AR deployment. The current code intentionally keeps A
 ## Simulator Controls
 
 - The simulator starts in `Select` mode.
-- Press `P` to toggle between `Select` and `Place` mode.
+- Use the `Select` and `Place` buttons, or press `P`, to switch modes.
+- The `Select` and `Place` buttons swap colors while placement mode is active, then restore after placement returns to `Select`.
 - In `Select` mode, left click an existing marker to select it.
 - In `Select` mode, left click empty scene space to deselect the current marker.
 - In `Place` mode, a green preview reticle follows valid placement surfaces.
@@ -119,9 +120,9 @@ After opening `Pinpoint_SIM.unity` and entering Play Mode:
 
 1. Confirm the session status starts in `Select` mode with zero markers.
 2. Left click empty scene space and confirm no marker is created.
-3. Press `P` and confirm the status changes to `Place` mode.
+3. Click `Place`, or press `P`, and confirm the status changes to `Place` mode and the mode buttons swap colors.
 4. Move the pointer over a valid placement surface and confirm the green preview appears.
-5. Left click to place a marker and confirm the simulator returns to `Select` mode.
+5. Left click to place a marker and confirm the simulator returns to `Select` mode with the original button colors restored.
 6. Place a second marker, select one, and edit its title, severity, status, and notes.
 7. Confirm the save button changes to `Save*`.
 8. Drag the details panel and confirm it stays usable.

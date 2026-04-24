@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class PinpointSimulatorController : MonoBehaviour
 {
@@ -24,6 +25,8 @@ public class PinpointSimulatorController : MonoBehaviour
     [Header("Interaction")]
     [SerializeField] private PinpointInteractionMode interactionMode = PinpointInteractionMode.Select;
     [SerializeField] private bool returnToSelectAfterPlacement = true;
+    [SerializeField] private Button selectModeButton;
+    [SerializeField] private Button placeModeButton;
 
     [Header("Placement Preview")]
     [SerializeField] private bool showPlacementPreview = true;
@@ -36,6 +39,9 @@ public class PinpointSimulatorController : MonoBehaviour
     private GameObject _placementPreview;
     private Renderer _placementPreviewRenderer;
     private Material _placementPreviewMaterial;
+    private ColorBlock _selectModeButtonDefaultColors;
+    private ColorBlock _placeModeButtonDefaultColors;
+    private bool _modeButtonColorsCaptured;
     private bool _isDirty;
     private string _lastSavedAtUtc;
     private const string SaveCleanLabel = "Save";
@@ -63,6 +69,9 @@ public class PinpointSimulatorController : MonoBehaviour
         {
             detailsPanel.OnMarkerEdited = MarkDirty;
         }
+
+        CaptureModeButtonColors();
+        RefreshModeButtonColors();
     }
 
     void Reset()
@@ -222,7 +231,37 @@ public class PinpointSimulatorController : MonoBehaviour
 
         interactionMode = mode;
         RefreshSessionStatusText();
+        RefreshModeButtonColors();
         UpdatePlacementPreview();
+    }
+
+    private void CaptureModeButtonColors()
+    {
+        if (_modeButtonColorsCaptured || selectModeButton == null || placeModeButton == null)
+            return;
+
+        _selectModeButtonDefaultColors = selectModeButton.colors;
+        _placeModeButtonDefaultColors = placeModeButton.colors;
+        _modeButtonColorsCaptured = true;
+    }
+
+    private void RefreshModeButtonColors()
+    {
+        CaptureModeButtonColors();
+
+        if (!_modeButtonColorsCaptured)
+            return;
+
+        if (interactionMode == PinpointInteractionMode.PlaceMarker)
+        {
+            selectModeButton.colors = _placeModeButtonDefaultColors;
+            placeModeButton.colors = _selectModeButtonDefaultColors;
+        }
+        else
+        {
+            selectModeButton.colors = _selectModeButtonDefaultColors;
+            placeModeButton.colors = _placeModeButtonDefaultColors;
+        }
     }
 
     public void DeleteSelectedMarker()
