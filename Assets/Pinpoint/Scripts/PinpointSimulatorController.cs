@@ -21,8 +21,21 @@ public class PinpointSimulatorController : MonoBehaviour
     [SerializeField] private TMP_Text saveButtonLabel;
     [SerializeField] private TMP_Text sessionStatusText;
 
+    [Header("Interaction")]
+    [SerializeField] private PinpointInteractionMode interactionMode = PinpointInteractionMode.Select;
+    [SerializeField] private bool returnToSelectAfterPlacement = true;
+
+    [Header("Placement Preview")]
+    [SerializeField] private bool showPlacementPreview = true;
+    [SerializeField] private float placementPreviewSize = 0.14f;
+    [SerializeField] private float placementPreviewSurfaceOffset = 0.01f;
+    [SerializeField] private Color placementPreviewColor = new(0.1f, 1f, 0.35f, 0.65f);
+
     private readonly List<GameObject> _markers = new();
     private GameObject _selected;
+    private GameObject _placementPreview;
+    private Renderer _placementPreviewRenderer;
+    private Material _placementPreviewMaterial;
     private bool _isDirty;
     private string _lastSavedAtUtc;
     private const string SaveCleanLabel = "Save";
@@ -57,10 +70,26 @@ public class PinpointSimulatorController : MonoBehaviour
         mainCamera = Camera.main;
     }
 
+    private void OnDestroy()
+    {
+        if (_placementPreview != null)
+            Destroy(_placementPreview);
+
+        if (_placementPreviewMaterial != null)
+            Destroy(_placementPreviewMaterial);
+    }
+
     void Update()
     {
         if (_interactionInputProvider == null)
             return;
+
+        bool textInputActive = _interactionInputProvider.IsTextInputActive();
+
+        if (!textInputActive && _interactionInputProvider.WasTogglePlacementModeRequested())
+            ToggleInteractionMode();
+
+        UpdatePlacementPreview();
 
         if (_interactionInputProvider.WasSceneActionRequested())
         {
@@ -68,7 +97,7 @@ public class PinpointSimulatorController : MonoBehaviour
                 HandleSceneAction();
         }
 
-        if (_interactionInputProvider.IsTextInputActive())
+        if (textInputActive)
             return;
 
         if (_interactionInputProvider.WasSaveRequested())
@@ -100,27 +129,38 @@ public class PinpointSimulatorController : MonoBehaviour
             return;
         }
 
-        Ray ray = _pointerRayProvider.GetPointerRay();
-
-        if (Physics.Raycast(ray, out RaycastHit hit, 100f, placementMask, QueryTriggerInteraction.Ignore))
-        {
-            // If we clicked a marker, select it; otherwise place a new marker at the hit point.
-            if (hit.collider.CompareTag("PinpointMarker"))
-            {
-                SelectMarker(hit.collider.gameObject);
-            }
-            else
-            {
-                PlaceMarker(hit.point);
-            }
-        }
+        if (interactionMode == PinpointInteractionMode.PlaceMarker)
+            HandlePlaceMarkerAction();
         else
+            HandleSelectAction();
+    }
+
+    private void HandleSelectAction()
+    {
+        if (TryRaycastScene(out RaycastHit hit, false) && hit.collider.CompareTag("PinpointMarker"))
+        {
+            SelectMarker(hit.collider.gameObject);
+            return;
+        }
+
+        DeselectCurrent();
+    }
+
+    private void HandlePlaceMarkerAction()
+    {
+        if (!TryRaycastScene(out RaycastHit hit, true))
         {
             // Fallback: place in front of camera
             //Vector3 p = mainCamera.transform.position + mainCamera.transform.forward * fallbackDistance;
             //PlaceMarker(p);
             DeselectCurrent();
+            return;
         }
+
+        PlaceMarker(hit.point);
+
+        if (returnToSelectAfterPlacement)
+            SetInteractionMode(PinpointInteractionMode.Select);
     }
 
     private void PlaceMarker(Vector3 position)
@@ -158,6 +198,33 @@ public class PinpointSimulatorController : MonoBehaviour
         detailsPanel.Bind(data);
     }
 
+    public void ToggleInteractionMode()
+    {
+        SetInteractionMode(interactionMode == PinpointInteractionMode.PlaceMarker
+            ? PinpointInteractionMode.Select
+            : PinpointInteractionMode.PlaceMarker);
+    }
+
+    public void SetSelectMode()
+    {
+        SetInteractionMode(PinpointInteractionMode.Select);
+    }
+
+    public void SetPlaceMarkerMode()
+    {
+        SetInteractionMode(PinpointInteractionMode.PlaceMarker);
+    }
+
+    private void SetInteractionMode(PinpointInteractionMode mode)
+    {
+        if (interactionMode == mode)
+            return;
+
+        interactionMode = mode;
+        RefreshSessionStatusText();
+        UpdatePlacementPreview();
+    }
+
     public void DeleteSelectedMarker()
     {
         if (_selected == null)
@@ -182,6 +249,103 @@ public class PinpointSimulatorController : MonoBehaviour
 
         if (detailsPanel != null)
             detailsPanel.Bind(null);
+    }
+
+    private bool TryRaycastScene(out RaycastHit hit, bool ignoreMarkers)
+    {
+        hit = default;
+
+        if (_pointerRayProvider == null)
+            return false;
+
+        Ray ray = _pointerRayProvider.GetPointerRay();
+
+        if (!ignoreMarkers)
+            return Physics.Raycast(ray, out hit, 100f, placementMask, QueryTriggerInteraction.Ignore);
+
+        RaycastHit[] hits = Physics.RaycastAll(ray, 100f, placementMask, QueryTriggerInteraction.Ignore);
+        if (hits.Length == 0)
+            return false;
+
+        System.Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+
+        foreach (RaycastHit candidate in hits)
+        {
+            if (!candidate.collider.CompareTag("PinpointMarker"))
+            {
+                hit = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void UpdatePlacementPreview()
+    {
+        if (!showPlacementPreview ||
+            interactionMode != PinpointInteractionMode.PlaceMarker ||
+            _interactionInputProvider == null ||
+            _interactionInputProvider.IsTextInputActive() ||
+            _interactionInputProvider.IsSceneActionBlockedByUi() ||
+            !TryRaycastScene(out RaycastHit hit, true))
+        {
+            SetPlacementPreviewVisible(false);
+            return;
+        }
+
+        EnsurePlacementPreview();
+
+        _placementPreview.transform.position = hit.point + hit.normal * placementPreviewSurfaceOffset;
+        _placementPreview.transform.rotation = Quaternion.FromToRotation(Vector3.up, hit.normal);
+        _placementPreview.transform.localScale = Vector3.one * placementPreviewSize;
+        SetPlacementPreviewVisible(true);
+    }
+
+    private void EnsurePlacementPreview()
+    {
+        if (_placementPreview != null)
+            return;
+
+        _placementPreview = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        _placementPreview.name = "PlacementPreview";
+        _placementPreview.tag = "Untagged";
+        _placementPreview.transform.SetParent(transform, true);
+
+        var collider = _placementPreview.GetComponent<Collider>();
+        if (collider != null)
+            Destroy(collider);
+
+        _placementPreviewRenderer = _placementPreview.GetComponent<Renderer>();
+        _placementPreviewMaterial = new Material(FindPreviewShader());
+        _placementPreviewMaterial.color = placementPreviewColor;
+        _placementPreviewMaterial.SetFloat("_Surface", 1f);
+        _placementPreviewMaterial.SetFloat("_Blend", 0f);
+        _placementPreviewMaterial.renderQueue = 3000;
+
+        if (_placementPreviewRenderer != null)
+            _placementPreviewRenderer.material = _placementPreviewMaterial;
+
+        SetPlacementPreviewVisible(false);
+    }
+
+    private Shader FindPreviewShader()
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader != null)
+            return shader;
+
+        shader = Shader.Find("Unlit/Color");
+        if (shader != null)
+            return shader;
+
+        return Shader.Find("Standard");
+    }
+
+    private void SetPlacementPreviewVisible(bool visible)
+    {
+        if (_placementPreview != null && _placementPreview.activeSelf != visible)
+            _placementPreview.SetActive(visible);
     }
 
     private PinpointSessionDto CreateSessionDtoFromScene()
@@ -352,6 +516,7 @@ public class PinpointSimulatorController : MonoBehaviour
     {
         var session = PinpointSessionStorage.Load();
         LoadSessionFromDto(session);
+        SetInteractionMode(PinpointInteractionMode.Select);
         MarkClean();
         RefreshSessionStatusText();
         Debug.Log("Session Loaded");
@@ -361,6 +526,7 @@ public class PinpointSimulatorController : MonoBehaviour
     {
         ClearAllMarkers();
         _lastSavedAtUtc = "";
+        SetInteractionMode(PinpointInteractionMode.Select);
         MarkClean();
         RefreshSessionStatusText();
         Debug.Log("Markers Cleared");
@@ -397,7 +563,8 @@ public class PinpointSimulatorController : MonoBehaviour
         if (sessionStatusText == null)
             return;
 
+        string modeLabel = interactionMode == PinpointInteractionMode.PlaceMarker ? "Place" : "Select";
         sessionStatusText.text =
-            $"Markers: {_markers.Count} | Last saved: {PinpointTimestamp.FormatDisplay(_lastSavedAtUtc)}";
+            $"Mode: {modeLabel} | Markers: {_markers.Count} | Saved: {PinpointTimestamp.FormatDisplay(_lastSavedAtUtc)}";
     }
 }

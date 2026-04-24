@@ -20,6 +20,8 @@ Current capabilities include:
 - Mark unsaved edits with `Save*`.
 - Save and load marker sessions as JSON.
 - Export an AI-ready analysis JSON package.
+- Toggle between selection and deliberate marker placement modes.
+- Preview marker placement with a small runtime reticle before placing.
 - Drag the marker details panel in the simulator.
 - Keep pointer input, panel dragging, note normalization, and marker anchoring behind small interfaces so the simulator can later be swapped for AR controller, headset, voice, and spatial anchor implementations.
 
@@ -49,8 +51,12 @@ It is not yet a production AR deployment. The current code intentionally keeps A
 
 ## Simulator Controls
 
-- Left click a placement surface to create a marker.
-- Left click an existing marker to select it.
+- The simulator starts in `Select` mode.
+- Press `P` to toggle between `Select` and `Place` mode.
+- In `Select` mode, left click an existing marker to select it.
+- In `Select` mode, left click empty scene space to deselect the current marker.
+- In `Place` mode, a green preview reticle follows valid placement surfaces.
+- In `Place` mode, left click a valid placement surface to create a marker. The simulator returns to `Select` mode after placement.
 - Edit marker details in the details panel.
 - Drag the details panel by its drag handle.
 - Use `Delete` in the details panel, or press `Delete` / `Backspace`, to remove the selected marker.
@@ -81,6 +87,7 @@ The prototype is organized around small, replaceable pieces:
 - `PinpointSessionDto` defines serialized session, marker, anchor, and analysis export data.
 - `PinpointSessionStorage` handles JSON save/load and analysis export writing.
 - `IPointerRayProvider` allows simulator mouse rays to later become headset or controller rays.
+- `IPinpointInteractionInputProvider` maps device input to app-level intents such as scene action, placement mode, save, load, delete, and export.
 - `IMarkerAnchorProvider` allows simulator positions to later become AR planes, spatial anchors, model coordinates, QR anchors, or another shop-floor localization source.
 - `IPanelDragInputProvider` allows mouse-driven panel dragging to later become hand-controller or tracked-pointer dragging.
 - `IMarkerNoteNormalizer` is a placeholder seam for future note cleanup, dictation, or AI-assisted normalization.
@@ -110,15 +117,18 @@ ProjectSettings/
 
 After opening `Pinpoint_SIM.unity` and entering Play Mode:
 
-1. Confirm the session status starts with zero markers.
-2. Place two or more markers.
-3. Select a marker and edit its title, severity, status, and notes.
-4. Confirm the save button changes to `Save*`.
-5. Drag the details panel and confirm it stays usable.
-6. Save the session.
-7. Start a new session and confirm markers clear.
-8. Load the session and confirm markers, IDs, timestamps, and marker count are restored.
-9. Export analysis JSON and inspect the generated file.
+1. Confirm the session status starts in `Select` mode with zero markers.
+2. Left click empty scene space and confirm no marker is created.
+3. Press `P` and confirm the status changes to `Place` mode.
+4. Move the pointer over a valid placement surface and confirm the green preview appears.
+5. Left click to place a marker and confirm the simulator returns to `Select` mode.
+6. Place a second marker, select one, and edit its title, severity, status, and notes.
+7. Confirm the save button changes to `Save*`.
+8. Drag the details panel and confirm it stays usable.
+9. Save the session.
+10. Start a new session and confirm markers clear.
+11. Load the session and confirm markers, IDs, timestamps, and marker count are restored.
+12. Export analysis JSON and inspect the generated file.
 
 ## Near-Term Roadmap
 
