@@ -6,6 +6,7 @@ public class MarkerDetailsPanel : MonoBehaviour
 {
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private TMP_Text markerIdText;
+    [SerializeField] private TMP_Text markerTraceText;
     [SerializeField] private TMP_InputField titleInput;
     [SerializeField] private TMP_Dropdown severityDropdown;
     [SerializeField] private TMP_Dropdown statusDropdown;
@@ -35,8 +36,9 @@ public class MarkerDetailsPanel : MonoBehaviour
             contentRoot.SetActive(hasSelection);
 
         if (!hasSelection) return;
-        
+
         markerIdText.text = _model.MarkerId;
+        RefreshTraceText();
         titleInput.SetTextWithoutNotify(_model.Title);
         severityDropdown.SetValueWithoutNotify((int)_model.Severity);
         statusDropdown.SetValueWithoutNotify((int)_model.Status);
@@ -49,6 +51,7 @@ public class MarkerDetailsPanel : MonoBehaviour
     {
         if (_model != null) {
             _model.Title = value;
+            RefreshTraceText();
             OnMarkerEdited?.Invoke();
         }
     }
@@ -57,6 +60,7 @@ public class MarkerDetailsPanel : MonoBehaviour
     {
         if (_model != null) {
             _model.Severity = (MarkerSeverity)index;
+            RefreshTraceText();
             OnMarkerEdited?.Invoke();
         }
     }
@@ -65,6 +69,7 @@ public class MarkerDetailsPanel : MonoBehaviour
     {
         if (_model != null) {
             _model.Status = (MarkerStatus)index;
+            RefreshTraceText();
             OnMarkerEdited?.Invoke();
         }
     }
@@ -73,9 +78,18 @@ public class MarkerDetailsPanel : MonoBehaviour
     {
         if (_model != null) {
             _model.RawNote = value;
+            RefreshTraceText();
             OnMarkerEdited?.Invoke();
         }
     }
 
-    
+    private void RefreshTraceText()
+    {
+        if (markerTraceText == null || _model == null)
+            return;
+
+        markerTraceText.text =
+            $"Created: {PinpointTimestamp.FormatDisplay(_model.CreatedAtUtc, "Unknown")}\n" +
+            $"Updated: {PinpointTimestamp.FormatDisplay(_model.UpdatedAtUtc, "Unknown")}";
+    }
 }

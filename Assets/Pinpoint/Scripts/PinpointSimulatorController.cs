@@ -15,16 +15,19 @@ public class PinpointSimulatorController : MonoBehaviour
     [SerializeField] private LayerMask placementMask = ~0;
     [SerializeField] private float fallbackDistance = 2f;
     [SerializeField] private TMP_Text saveButtonLabel;
+    [SerializeField] private TMP_Text sessionStatusText;
 
     private readonly List<GameObject> _markers = new();
     private GameObject _selected;
     private bool _isDirty;
+    private string _lastSavedAtUtc;
     private const string SaveCleanLabel = "Save";
     private const string SaveDirtyLabel = "Save*";
 
     private void Awake()
     {
         RefreshSaveButtonLabel();
+        RefreshSessionStatusText();
         _pointerRayProvider = pointerRayProviderBehaviour as IPointerRayProvider;
         if (_pointerRayProvider == null)
             Debug.LogError("Pointer ray provider is not assigned or does not implement IPointerRayProvider.");
@@ -121,6 +124,7 @@ public class PinpointSimulatorController : MonoBehaviour
         _markers.Add(marker);
         SelectMarker(marker);
         MarkDirty();
+        RefreshSessionStatusText();
     }
 
     private void SelectMarker(GameObject marker)
@@ -178,6 +182,7 @@ public class PinpointSimulatorController : MonoBehaviour
         if (detailsPanel != null)
             detailsPanel.Bind(null);
         MarkDirty();
+        RefreshSessionStatusText();
     }
 
     private void DeselectCurrent()
@@ -195,7 +200,8 @@ public class PinpointSimulatorController : MonoBehaviour
     {
         var session = new PinpointSessionDto
         {
-            sessionName = "Pinpoint Session"
+            sessionName = "Pinpoint Session",
+            lastSavedAtUtc = _lastSavedAtUtc
         };
 
         foreach (var marker in _markers)
@@ -208,6 +214,8 @@ public class PinpointSimulatorController : MonoBehaviour
             session.markers.Add(new PinpointMarkerDto
             {
                 markerId = data.MarkerId,
+                createdAtUtc = data.CreatedAtUtc,
+                updatedAtUtc = data.UpdatedAtUtc,
                 title = data.Title,
                 severity = (int)data.Severity,
                 status = (int)data.Status,
@@ -230,6 +238,7 @@ public class PinpointSimulatorController : MonoBehaviour
         }
 
         _markers.Clear();
+        RefreshSessionStatusText();
     }
 
     private void LoadSessionFromDto(PinpointSessionDto session)
@@ -237,6 +246,9 @@ public class PinpointSimulatorController : MonoBehaviour
         if (session == null) return;
 
         ClearAllMarkers();
+        _lastSavedAtUtc = string.IsNullOrWhiteSpace(session.lastSavedAtUtc)
+            ? ""
+            : PinpointTimestamp.EnsureUtcIso(session.lastSavedAtUtc);
 
         foreach (var markerDto in session.markers)
         {
@@ -256,6 +268,7 @@ public class PinpointSimulatorController : MonoBehaviour
         }
 
         DeselectCurrent();
+        RefreshSessionStatusText();
     }
 
     private bool IsTypingInInputField()
@@ -273,8 +286,11 @@ public class PinpointSimulatorController : MonoBehaviour
     public void SaveSession()
     {
         var session = CreateSessionDtoFromScene();
+        session.lastSavedAtUtc = PinpointTimestamp.NowUtcIso();
         PinpointSessionStorage.Save(session);
+        _lastSavedAtUtc = session.lastSavedAtUtc;
         MarkClean();
+        RefreshSessionStatusText();
         Debug.Log("Session Saved");
     }
     public void LoadSession()
@@ -282,13 +298,16 @@ public class PinpointSimulatorController : MonoBehaviour
         var session = PinpointSessionStorage.Load();
         LoadSessionFromDto(session);
         MarkClean();
+        RefreshSessionStatusText();
         Debug.Log("Session Loaded");
     }
 
     public void NewSession()
     {
         ClearAllMarkers();
+        _lastSavedAtUtc = "";
         MarkClean();
+        RefreshSessionStatusText();
         Debug.Log("Markers Cleared");
     }
 
@@ -316,5 +335,14 @@ public class PinpointSimulatorController : MonoBehaviour
         {
             saveButtonLabel.text = _isDirty ? SaveDirtyLabel : SaveCleanLabel;
         }
+    }
+
+    private void RefreshSessionStatusText()
+    {
+        if (sessionStatusText == null)
+            return;
+
+        sessionStatusText.text =
+            $"Markers: {_markers.Count} | Last saved: {PinpointTimestamp.FormatDisplay(_lastSavedAtUtc)}";
     }
 }
