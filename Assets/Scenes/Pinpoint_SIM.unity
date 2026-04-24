@@ -1375,6 +1375,7 @@ GameObject:
   m_Component:
   - component: {fileID: 380128961}
   - component: {fileID: 380128960}
+  - component: {fileID: 2100000201}
   m_Layer: 0
   m_Name: Pinpoint
   m_TagString: Untagged
@@ -1398,12 +1399,25 @@ MonoBehaviour:
   markerPrefab: {fileID: 8527043941248358384, guid: 599110e17cc9412478319dd928ffa5fb, type: 3}
   detailsPanel: {fileID: 502635960}
   pointerRayProviderBehaviour: {fileID: 446826768}
+  markerAnchorProviderBehaviour: {fileID: 2100000201}
   placementMask:
     serializedVersion: 2
     m_Bits: 4294967295
   fallbackDistance: 2
   saveButtonLabel: {fileID: 1078794501}
   sessionStatusText: {fileID: 2100000004}
+--- !u!114 &2100000201
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 380128959}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e56b2b983bc64e869e2fbba6d7d0f215, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::SimulatorMarkerAnchorProvider
 --- !u!4 &380128961
 Transform:
   m_ObjectHideFlags: 0

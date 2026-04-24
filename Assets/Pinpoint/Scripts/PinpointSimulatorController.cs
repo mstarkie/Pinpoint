@@ -9,7 +9,9 @@ public class PinpointSimulatorController : MonoBehaviour
     [SerializeField] private GameObject markerPrefab;
     [SerializeField] private MarkerDetailsPanel detailsPanel;
     [SerializeField] private MonoBehaviour pointerRayProviderBehaviour;
+    [SerializeField] private MonoBehaviour markerAnchorProviderBehaviour;
     private IPointerRayProvider _pointerRayProvider;
+    private IMarkerAnchorProvider _markerAnchorProvider;
 
     [Header("Raycast")]
     [SerializeField] private LayerMask placementMask = ~0;
@@ -31,6 +33,10 @@ public class PinpointSimulatorController : MonoBehaviour
         _pointerRayProvider = pointerRayProviderBehaviour as IPointerRayProvider;
         if (_pointerRayProvider == null)
             Debug.LogError("Pointer ray provider is not assigned or does not implement IPointerRayProvider.");
+
+        _markerAnchorProvider = markerAnchorProviderBehaviour as IMarkerAnchorProvider;
+        if (_markerAnchorProvider == null)
+            Debug.LogError("Marker anchor provider is not assigned or does not implement IMarkerAnchorProvider.");
 
         if (detailsPanel != null)
         {
@@ -211,6 +217,7 @@ public class PinpointSimulatorController : MonoBehaviour
             var data = marker.GetComponent<PinpointMarkerModel>();
             if (data == null) continue;
 
+            var anchor = CreateAnchorDto(marker.transform);
             session.markers.Add(new PinpointMarkerDto
             {
                 markerId = data.MarkerId,
@@ -220,7 +227,8 @@ public class PinpointSimulatorController : MonoBehaviour
                 severity = (int)data.Severity,
                 status = (int)data.Status,
                 rawNote = data.RawNote,
-                position = marker.transform.position
+                anchor = anchor,
+                position = anchor.position
             });
         }
 
@@ -252,7 +260,8 @@ public class PinpointSimulatorController : MonoBehaviour
 
         foreach (var markerDto in session.markers)
         {
-            var go = Instantiate(markerPrefab, markerDto.position, Quaternion.identity);
+            Pose markerPose = ResolveMarkerPose(markerDto);
+            var go = Instantiate(markerPrefab, markerPose.position, markerPose.rotation);
             go.tag = "PinpointMarker";
             //go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
 
@@ -281,6 +290,25 @@ public class PinpointSimulatorController : MonoBehaviour
             return false;
 
         return selected.GetComponent<TMP_InputField>() != null;
+    }
+
+    private MarkerAnchorDto CreateAnchorDto(Transform markerTransform)
+    {
+        if (_markerAnchorProvider != null)
+            return _markerAnchorProvider.CreateAnchor(markerTransform);
+
+        return MarkerAnchorDto.FromTransform(MarkerAnchorSource.Simulator, markerTransform);
+    }
+
+    private Pose ResolveMarkerPose(PinpointMarkerDto markerDto)
+    {
+        if (_markerAnchorProvider != null)
+            return _markerAnchorProvider.ResolvePose(markerDto);
+
+        if (markerDto.anchor != null && markerDto.anchor.HasUsablePose)
+            return markerDto.anchor.ToPose();
+
+        return new Pose(markerDto.position, Quaternion.identity);
     }
 
     public void SaveSession()

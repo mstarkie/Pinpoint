@@ -21,6 +21,7 @@ public class PinpointMarkerDto
     public int severity;
     public int status;
     public string rawNote;
+    public MarkerAnchorDto anchor;
     public Vector3 position;
 }
 
