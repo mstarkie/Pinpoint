@@ -53,11 +53,11 @@ It is not yet a production AR deployment. The current code intentionally keeps A
 - Left click an existing marker to select it.
 - Edit marker details in the details panel.
 - Drag the details panel by its drag handle.
-- Use `Delete` in the details panel to remove the selected marker.
+- Use `Delete` in the details panel, or press `Delete` / `Backspace`, to remove the selected marker.
 - Use `New` or press `N` to clear the current session.
 - Use `Save` or press `S` to write the current session JSON.
 - Use `Load` or press `L` to reload the saved session JSON.
-- Use `Export` to write the analysis export JSON.
+- Use `Export` or press `E` to write the analysis export JSON.
 
 ## Saved Data
 

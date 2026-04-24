@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using TMPro;
+
 public class PinpointSimulatorController : MonoBehaviour
 {
     [Header("References")]
@@ -9,8 +9,10 @@ public class PinpointSimulatorController : MonoBehaviour
     [SerializeField] private GameObject markerPrefab;
     [SerializeField] private MarkerDetailsPanel detailsPanel;
     [SerializeField] private MonoBehaviour pointerRayProviderBehaviour;
+    [SerializeField] private MonoBehaviour interactionInputProviderBehaviour;
     [SerializeField] private MonoBehaviour markerAnchorProviderBehaviour;
     private IPointerRayProvider _pointerRayProvider;
+    private IPinpointInteractionInputProvider _interactionInputProvider;
     private IMarkerAnchorProvider _markerAnchorProvider;
 
     [Header("Raycast")]
@@ -34,6 +36,12 @@ public class PinpointSimulatorController : MonoBehaviour
         if (_pointerRayProvider == null)
             Debug.LogError("Pointer ray provider is not assigned or does not implement IPointerRayProvider.");
 
+        _interactionInputProvider = interactionInputProviderBehaviour as IPinpointInteractionInputProvider;
+        if (_interactionInputProvider == null)
+            _interactionInputProvider = pointerRayProviderBehaviour as IPinpointInteractionInputProvider;
+        if (_interactionInputProvider == null)
+            Debug.LogError("Interaction input provider is not assigned or does not implement IPinpointInteractionInputProvider.");
+
         _markerAnchorProvider = markerAnchorProviderBehaviour as IMarkerAnchorProvider;
         if (_markerAnchorProvider == null)
             Debug.LogError("Marker anchor provider is not assigned or does not implement IMarkerAnchorProvider.");
@@ -51,34 +59,35 @@ public class PinpointSimulatorController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0)) // left click
-        {
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-                return;
-                
-            HandleLeftClick();
-        }
-
-        if (IsTypingInInputField())
+        if (_interactionInputProvider == null)
             return;
 
-        if (Input.GetKeyDown(KeyCode.S))
+        if (_interactionInputProvider.WasSceneActionRequested())
         {
+            if (!_interactionInputProvider.IsSceneActionBlockedByUi())
+                HandleSceneAction();
+        }
+
+        if (_interactionInputProvider.IsTextInputActive())
+            return;
+
+        if (_interactionInputProvider.WasSaveRequested())
             SaveSession();
-        }
 
-        if (Input.GetKeyDown(KeyCode.L))
-        {
+        if (_interactionInputProvider.WasLoadRequested())
             LoadSession();
-        }
 
-        if (Input.GetKeyDown(KeyCode.N))
-        {
+        if (_interactionInputProvider.WasNewSessionRequested())
             NewSession();
-        }
+
+        if (_interactionInputProvider.WasDeleteSelectedRequested())
+            DeleteSelectedMarker();
+
+        if (_interactionInputProvider.WasExportAnalysisRequested())
+            ExportAnalysisJson();
     }
 
-    private void HandleLeftClick()
+    private void HandleSceneAction()
     {
         if (mainCamera == null)
         {
@@ -147,33 +156,6 @@ public class PinpointSimulatorController : MonoBehaviour
 
         var data = _selected != null ? _selected.GetComponent<PinpointMarkerModel>() : null;
         detailsPanel.Bind(data);
-    }
-
-    private void SetSelectedMarker(PinpointMarkerModel marker)
-    {
-        if (_selected == marker)
-            return;
-
-        if (_selected != null)
-        {
-            var oldView = _selected.GetComponent<PinpointMarkerView>();
-            if (oldView != null)
-                oldView.SetSelected(false);
-        }
-
-        _selected = marker;
-
-        if (_selected != null)
-        {
-            var newView = _selected.GetComponent<PinpointMarkerView>();
-            if (newView != null)
-                newView.SetSelected(true);
-
-            if (detailsPanel != null) {
-                var data = _selected != null ? _selected.GetComponent<PinpointMarkerModel>() : null;
-                detailsPanel.Bind(data);
-            }
-        }
     }
 
     public void DeleteSelectedMarker()
@@ -327,18 +309,6 @@ public class PinpointSimulatorController : MonoBehaviour
 
         DeselectCurrent();
         RefreshSessionStatusText();
-    }
-
-    private bool IsTypingInInputField()
-    {
-        if (EventSystem.current == null)
-            return false;
-
-        var selected = EventSystem.current.currentSelectedGameObject;
-        if (selected == null)
-            return false;
-
-        return selected.GetComponent<TMP_InputField>() != null;
     }
 
     private MarkerAnchorDto CreateAnchorDto(Transform markerTransform)
