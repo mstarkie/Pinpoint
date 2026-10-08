@@ -20,6 +20,9 @@ Current capabilities include:
 - Mark unsaved edits with `Save*`.
 - Save and load marker sessions as JSON.
 - Export an AI-ready analysis JSON package.
+- Convert marker data into a structured LLM prompt package.
+- Run a local Ollama-compatible LLM analysis request from the simulator.
+- Display AI feedback in the simulator and save the latest result plus an offline log.
 - Toggle between selection and deliberate marker placement modes.
 - Preview marker placement with a small runtime reticle before placing.
 - Color markers by severity and show status with a camera-facing badge.
@@ -66,6 +69,7 @@ It is not yet a production AR deployment. The current code intentionally keeps A
 - Use `Save` or press `S` to write the current session JSON.
 - Use `Load` or press `L` to reload the saved session JSON.
 - Use `Export` or press `E` to write the analysis export JSON.
+- Use `Analyze`, or press `A`, to send the current marker observations to the configured local LLM endpoint.
 
 ## Saved Data
 
@@ -73,10 +77,14 @@ Pinpoint currently writes local JSON files through Unity's `Application.persiste
 
 - Session save file: `pinpoint_session.json`
 - Analysis export file: `pinpoint_analysis_export.json`
+- Latest AI result file: `pinpoint_ai_analysis_latest.json`
+- Append-only AI result log: `pinpoint_ai_analysis_log.jsonl`
 
 The session JSON stores marker IDs, marker fields, timestamps, legacy position data, and an anchor DTO. Older JSON files that do not contain anchor or timestamp data are expected to load safely with fallback behavior.
 
 Timestamps are stored as ISO 8601 UTC strings and displayed in the UI as UTC.
+
+The AI result files store the provider, endpoint, model, structured prompt JSON, prompt text, response text, display text, errors, and marker count for each analysis run. The default LLM endpoint is Ollama's local generate API at `http://localhost:11434/api/generate` using the `llama3.2:3b` model name; change those fields on `PinpointSimulatorController` if you use a different local service or model.
 
 ## Architecture Overview
 
@@ -88,6 +96,8 @@ The prototype is organized around small, replaceable pieces:
 - `MarkerDetailsPanel` binds selected marker data to the UI.
 - `PinpointSessionDto` defines serialized session, marker, anchor, and analysis export data.
 - `PinpointSessionStorage` handles JSON save/load and analysis export writing.
+- `PinpointAiPromptBuilder` converts the current analysis export into a structured prompt package and LLM prompt text.
+- `PinpointAiAnalysisStorage` saves the latest AI result and appends each result to an offline JSONL log.
 - `IPointerRayProvider` allows simulator mouse rays to later become headset or controller rays.
 - `IPinpointInteractionInputProvider` maps device input to app-level intents such as scene action, placement mode, save, load, delete, and export.
 - `IMarkerAnchorProvider` allows simulator positions to later become AR planes, spatial anchors, model coordinates, QR anchors, or another shop-floor localization source.
@@ -134,6 +144,9 @@ After opening `Pinpoint_SIM.unity` and entering Play Mode:
 13. Start a new session and confirm markers clear.
 14. Load the session and confirm markers, IDs, timestamps, visual state, and marker count are restored.
 15. Export analysis JSON and inspect the generated file.
+16. Start Ollama locally with the configured model, or leave it stopped to test error logging.
+17. Click `Analyze`, or press `A`, and confirm the AI feedback panel updates.
+18. Inspect `pinpoint_ai_analysis_latest.json` and `pinpoint_ai_analysis_log.jsonl` in Unity's persistent data path.
 
 ## Near-Term Roadmap
 
@@ -142,7 +155,7 @@ After opening `Pinpoint_SIM.unity` and entering Play Mode:
 - Add voice dictation support for marker notes.
 - Improve marker visuals for headset use.
 - Add filtering, search, and issue review workflows.
-- Expand the analysis export into an AI-assisted summarization and trend-identification pipeline.
+- Expand the AI-assisted summarization pipeline with richer prompts, configurable providers, and review workflows.
 - Evaluate practical workflows for shipbuilding planning, quality, inspection, production, and engineering handoff.
 
 ## License

@@ -1,7 +1,11 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.Networking;
 
 public class PinpointSimulatorController : MonoBehaviour
 {
@@ -27,6 +31,17 @@ public class PinpointSimulatorController : MonoBehaviour
     [SerializeField] private Button selectModeButton;
     [SerializeField] private Button placeModeButton;
 
+    [Header("AI Analysis")]
+    [SerializeField] private TMP_Text aiFeedbackText;
+    [SerializeField] private Button analyzeAiButton;
+    [SerializeField] private bool createAiFeedbackPanelIfMissing = true;
+    [SerializeField] private string llmProviderName = "Ollama";
+    [SerializeField] private string llmEndpoint = "http://localhost:11434/api/generate";
+    [SerializeField] private string llmModel = "llama3.2:3b";
+    [SerializeField] private int llmTimeoutSeconds = 60;
+    [SerializeField] [TextArea(3, 8)] private string aiTaskInstructions =
+        "Analyze the marker observations for issue severity, likely field risks, and recommended follow-up actions.";
+
     [Header("Placement Preview")]
     [SerializeField] private bool showPlacementPreview = true;
     [SerializeField] private float placementPreviewSize = 0.14f;
@@ -42,9 +57,11 @@ public class PinpointSimulatorController : MonoBehaviour
     private ColorBlock _placeModeButtonDefaultColors;
     private bool _modeButtonColorsCaptured;
     private bool _isDirty;
+    private bool _isAnalyzingWithAi;
     private string _lastSavedAtUtc;
     private const string SaveCleanLabel = "Save";
     private const string SaveDirtyLabel = "Save*";
+    private const string AiReadyMessage = "AI Analysis: Ready";
 
     private void Awake()
     {
@@ -69,6 +86,11 @@ public class PinpointSimulatorController : MonoBehaviour
             detailsPanel.OnMarkerEdited = MarkDirty;
         }
 
+        EnsureAiFeedbackDisplay();
+        if (analyzeAiButton != null)
+            analyzeAiButton.onClick.AddListener(AnalyzeSessionWithAi);
+        SetAiFeedbackMessage(AiReadyMessage);
+
         CaptureModeButtonColors();
         RefreshModeButtonColors();
     }
@@ -85,6 +107,9 @@ public class PinpointSimulatorController : MonoBehaviour
 
         if (_placementPreviewMaterial != null)
             Destroy(_placementPreviewMaterial);
+
+        if (analyzeAiButton != null)
+            analyzeAiButton.onClick.RemoveListener(AnalyzeSessionWithAi);
     }
 
     void Update()
@@ -122,6 +147,9 @@ public class PinpointSimulatorController : MonoBehaviour
 
         if (_interactionInputProvider.WasExportAnalysisRequested())
             ExportAnalysisJson();
+
+        if (_interactionInputProvider.WasAnalyzeWithAiRequested())
+            AnalyzeSessionWithAi();
     }
 
     private void HandleSceneAction()
@@ -547,6 +575,155 @@ public class PinpointSimulatorController : MonoBehaviour
         Debug.Log($"Analysis export contains {analysisExport.markerCount} marker observations.");
     }
 
+    public void AnalyzeSessionWithAi()
+    {
+        if (_isAnalyzingWithAi)
+        {
+            SetAiFeedbackMessage("AI Analysis: request already running.");
+            return;
+        }
+
+        var analysisExport = CreateAnalysisExportDtoFromScene();
+        if (analysisExport.markerCount == 0)
+        {
+            SetAiFeedbackMessage("AI Analysis: add at least one marker before running analysis.");
+            return;
+        }
+
+        var promptPackage = PinpointAiPromptBuilder.BuildPromptPackage(analysisExport, aiTaskInstructions);
+        StartCoroutine(RequestAiAnalysisRoutine(promptPackage));
+    }
+
+    private IEnumerator RequestAiAnalysisRoutine(PinpointAiPromptPackageDto promptPackage)
+    {
+        _isAnalyzingWithAi = true;
+
+        string promptJson = PinpointAiPromptBuilder.ToPromptJson(promptPackage, true);
+        string promptText = PinpointAiPromptBuilder.BuildLlmPrompt(promptPackage);
+        var result = new PinpointAiAnalysisResultDto
+        {
+            runId = Guid.NewGuid().ToString("N"),
+            requestedAtUtc = PinpointTimestamp.NowUtcIso(),
+            providerName = llmProviderName,
+            endpoint = llmEndpoint,
+            model = llmModel,
+            markerCount = promptPackage.markerCount,
+            promptSchemaVersion = promptPackage.schemaVersion,
+            promptJson = promptJson,
+            promptText = promptText
+        };
+
+        SetAiFeedbackMessage($"AI Analysis: sending {promptPackage.markerCount} marker observations to {llmProviderName}...");
+
+        if (string.IsNullOrWhiteSpace(llmEndpoint) || string.IsNullOrWhiteSpace(llmModel))
+        {
+            result.success = false;
+            result.errorMessage = "LLM endpoint or model is not configured.";
+            CompleteAiAnalysisResult(result);
+            yield break;
+        }
+
+        var requestDto = new PinpointOllamaGenerateRequestDto
+        {
+            model = llmModel,
+            prompt = promptText,
+            stream = false
+        };
+
+        string requestJson = JsonUtility.ToJson(requestDto);
+        byte[] requestBody = Encoding.UTF8.GetBytes(requestJson);
+
+        using (var request = new UnityWebRequest(llmEndpoint, UnityWebRequest.kHttpVerbPOST))
+        {
+            request.uploadHandler = new UploadHandlerRaw(requestBody);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.timeout = Mathf.Max(1, llmTimeoutSeconds);
+            request.SetRequestHeader("Content-Type", "application/json");
+
+            yield return request.SendWebRequest();
+
+            string responseBody = request.downloadHandler != null ? request.downloadHandler.text : "";
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                result.success = false;
+                result.rawResponse = responseBody;
+                result.errorMessage = string.IsNullOrWhiteSpace(responseBody)
+                    ? $"{request.responseCode} {request.error}"
+                    : $"{request.responseCode} {request.error}: {responseBody}";
+            }
+            else if (!TryExtractOllamaResponse(responseBody, out string responseText, out string responseError))
+            {
+                result.success = false;
+                result.rawResponse = responseBody;
+                result.errorMessage = responseError;
+            }
+            else
+            {
+                result.success = true;
+                result.rawResponse = responseText;
+                result.displayResponse = PinpointAiPromptBuilder.BuildDisplayResponse(responseText);
+            }
+        }
+
+        CompleteAiAnalysisResult(result);
+    }
+
+    private void CompleteAiAnalysisResult(PinpointAiAnalysisResultDto result)
+    {
+        result.completedAtUtc = PinpointTimestamp.NowUtcIso();
+
+        if (!result.success)
+        {
+            result.displayResponse =
+                "AI Analysis failed.\n" +
+                result.errorMessage + "\n\n" +
+                "The structured prompt was still saved in the offline AI log.";
+        }
+
+        PinpointAiAnalysisStorage.Save(result);
+        SetAiFeedbackMessage(result.displayResponse);
+        Debug.Log(result.success
+            ? $"AI analysis completed for {result.markerCount} marker observations."
+            : $"AI analysis failed: {result.errorMessage}");
+
+        _isAnalyzingWithAi = false;
+    }
+
+    private static bool TryExtractOllamaResponse(string responseBody, out string responseText, out string errorMessage)
+    {
+        responseText = responseBody;
+        errorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(responseBody))
+        {
+            responseText = "";
+            return true;
+        }
+
+        try
+        {
+            var responseDto = JsonUtility.FromJson<PinpointOllamaGenerateResponseDto>(responseBody);
+            if (responseDto != null)
+            {
+                if (!string.IsNullOrWhiteSpace(responseDto.error))
+                {
+                    errorMessage = responseDto.error;
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(responseDto.response))
+                    responseText = responseDto.response;
+            }
+        }
+        catch (Exception parseException)
+        {
+            Debug.LogWarning($"AI response was not parsed as Ollama JSON; using raw response text. {parseException.Message}");
+        }
+
+        return true;
+    }
+
     public void LoadSession()
     {
         var session = PinpointSessionStorage.Load();
@@ -564,7 +741,113 @@ public class PinpointSimulatorController : MonoBehaviour
         SetInteractionMode(PinpointInteractionMode.Select);
         MarkClean();
         RefreshSessionStatusText();
+        SetAiFeedbackMessage(AiReadyMessage);
         Debug.Log("Markers Cleared");
+    }
+
+    private void EnsureAiFeedbackDisplay()
+    {
+        if (aiFeedbackText != null || !createAiFeedbackPanelIfMissing)
+            return;
+
+        Canvas canvas = sessionStatusText != null
+            ? sessionStatusText.GetComponentInParent<Canvas>()
+            : null;
+
+        if (canvas == null)
+            canvas = FindFirstObjectByType<Canvas>();
+
+        if (canvas == null)
+        {
+            Debug.LogWarning("PinpointSimulatorController: no Canvas found for AI feedback display.");
+            return;
+        }
+
+        var panel = new GameObject("AiFeedbackPanel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        panel.transform.SetParent(canvas.transform, false);
+
+        var panelRect = panel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0f, 0f);
+        panelRect.anchorMax = new Vector2(0f, 0f);
+        panelRect.pivot = new Vector2(0f, 0f);
+        panelRect.anchoredPosition = new Vector2(20f, 20f);
+        panelRect.sizeDelta = new Vector2(560f, 190f);
+
+        var panelImage = panel.GetComponent<Image>();
+        panelImage.color = new Color(0.05f, 0.06f, 0.07f, 0.88f);
+
+        var titleText = CreateRuntimeText("AiFeedbackTitle", panel.transform, 18f, FontStyles.Bold);
+        var titleRect = titleText.rectTransform;
+        titleRect.anchorMin = new Vector2(0f, 1f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.offsetMin = new Vector2(16f, -44f);
+        titleRect.offsetMax = new Vector2(-126f, -10f);
+        titleText.text = "AI Analysis";
+
+        aiFeedbackText = CreateRuntimeText("AiFeedbackText", panel.transform, 14f, FontStyles.Normal);
+        var feedbackRect = aiFeedbackText.rectTransform;
+        feedbackRect.anchorMin = new Vector2(0f, 0f);
+        feedbackRect.anchorMax = new Vector2(1f, 1f);
+        feedbackRect.offsetMin = new Vector2(16f, 16f);
+        feedbackRect.offsetMax = new Vector2(-16f, -54f);
+
+        if (analyzeAiButton == null)
+            analyzeAiButton = CreateRuntimeAnalyzeButton(panel.transform);
+    }
+
+    private TMP_Text CreateRuntimeText(string name, Transform parent, float fontSize, FontStyles fontStyle)
+    {
+        var textObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(parent, false);
+
+        var text = textObject.GetComponent<TextMeshProUGUI>();
+        text.color = Color.white;
+        text.fontSize = fontSize;
+        text.fontStyle = fontStyle;
+        text.textWrappingMode = TextWrappingModes.Normal;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.alignment = TextAlignmentOptions.TopLeft;
+
+        return text;
+    }
+
+    private Button CreateRuntimeAnalyzeButton(Transform parent)
+    {
+        var buttonObject = new GameObject("AnalyzeAiButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+
+        var buttonRect = buttonObject.GetComponent<RectTransform>();
+        buttonRect.anchorMin = new Vector2(1f, 1f);
+        buttonRect.anchorMax = new Vector2(1f, 1f);
+        buttonRect.pivot = new Vector2(1f, 1f);
+        buttonRect.anchoredPosition = new Vector2(-14f, -12f);
+        buttonRect.sizeDelta = new Vector2(104f, 34f);
+
+        var image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0.2f, 0.44f, 0.95f, 0.95f);
+
+        var button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+
+        var label = CreateRuntimeText("Label", buttonObject.transform, 15f, FontStyles.Bold);
+        var labelRect = label.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        label.alignment = TextAlignmentOptions.Center;
+        label.overflowMode = TextOverflowModes.Ellipsis;
+        label.text = "Analyze";
+
+        return button;
+    }
+
+    private void SetAiFeedbackMessage(string message)
+    {
+        EnsureAiFeedbackDisplay();
+
+        if (aiFeedbackText != null)
+            aiFeedbackText.text = string.IsNullOrWhiteSpace(message) ? AiReadyMessage : message;
     }
 
     private void MarkDirty()

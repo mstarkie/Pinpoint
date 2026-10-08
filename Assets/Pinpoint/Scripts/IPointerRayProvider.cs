@@ -19,6 +19,7 @@ public interface IPinpointInteractionInputProvider
     bool WasNewSessionRequested();
     bool WasDeleteSelectedRequested();
     bool WasExportAnalysisRequested();
+    bool WasAnalyzeWithAiRequested();
     bool WasTogglePlacementModeRequested();
     bool IsSceneActionBlockedByUi();
     bool IsTextInputActive();

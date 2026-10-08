@@ -12,6 +12,7 @@ public class MousePointerRayProvider : MonoBehaviour, IPointerRayProvider, IPinp
     [SerializeField] private KeyCode deleteSelectedKey = KeyCode.Delete;
     [SerializeField] private KeyCode alternateDeleteSelectedKey = KeyCode.Backspace;
     [SerializeField] private KeyCode exportAnalysisKey = KeyCode.E;
+    [SerializeField] private KeyCode analyzeWithAiKey = KeyCode.A;
     [SerializeField] private KeyCode togglePlacementModeKey = KeyCode.P;
     [SerializeField] private bool blockSceneActionWhenPointerOverUi = true;
 
@@ -64,6 +65,11 @@ public class MousePointerRayProvider : MonoBehaviour, IPointerRayProvider, IPinp
     public bool WasExportAnalysisRequested()
     {
         return Input.GetKeyDown(exportAnalysisKey);
+    }
+
+    public bool WasAnalyzeWithAiRequested()
+    {
+        return Input.GetKeyDown(analyzeWithAiKey);
     }
 
     public bool WasTogglePlacementModeRequested()
